@@ -6,6 +6,7 @@ import (
 	"io"
 	"net"
 	"net/smtp"
+	"os"
 	"runtime"
 	"sort"
 	"time"
@@ -32,8 +33,15 @@ func main() {
 	workers := flag.Int("workers", 100, "-workers=100")
 	jobs := flag.Int("jobs", 50, "-jobs=50")
 	outboundip := flag.String("outbound", "127.0.0.1", "-outbound=127.0.0.1")
+	flag.Usage = usage
 
 	flag.Parse()
+
+	args := flag.Args()
+	if len(args) != 1 {
+		flag.Usage()
+		os.Exit(2)
+	}
 
 	errorCount = 0
 	totalCount = 0
@@ -268,4 +276,13 @@ func isContain(key string, keys []string) bool {
 	}
 
 	return exists
+}
+
+func usage() {
+	fmt.Fprintf(os.Stderr, "Usage: %s [OPTIONS]\n\n", os.Args[0])
+	fmt.Fprintln(os.Stderr, "OPTIONS:")
+	flag.PrintDefaults()
+	fmt.Fprintln(os.Stderr, "USAGE:")
+	fmt.Fprintln(os.Stderr, "./bomberman -host=mail.server.com:25 -from=test@mydomain.com -to=user@remotedomain.com -workers=100 -jobs=50 -count=100 -outbound=YOUR_PUBLIC_IP -helo=mydomain.com -subject=\"Test Email\"")
+	fmt.Fprintln(os.Stderr, "")
 }
