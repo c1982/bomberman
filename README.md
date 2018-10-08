@@ -1,30 +1,39 @@
-# bomberman
+# Bomberman
 SMTP Load Test tool 
 
-## Installing
-...
+## Installation
 
-## flags
+bomberman requires Go 1.11 or later.
+
+```
+$ go get github.com/c1982/bomberman
+```
+
+or
+
+download
+
+## Flags
 
 | Flag        | Desc           | 
 | ------------- |-------------| 
-| host | Remote SMTP server with Port. Example: mail.server.com:25 | 
+| host | Remote SMTP server with Port. Default: mail.server.com:25 | 
 | from | From email address | 
 | to | To email address| 
 | subject | Email subject text | 
 | body | Email body text | 
-| helo | SMTP client helo name. Ex: mail.server.com | 
-| count | Email message count |
+| helo | SMTP client helo name. Default: mail.server.com | 
+| count | Email message count. Default: 10|
 | workers | Thread workers for SMTP client. Default: 100 |
 | jobs | Job queue lenght in workers. Default: 50 |
 | outbound | Outbound IP address for SMTP client |
 
-## server configuration checklist
+## Server Configuration Checklist
 
 * Check SPF value in domain dns zone
 * Check PTR record your outbound IP address
 
-## usage
+## Usage
 
 Send 100 email to mail.server.com:25 100 workers
 
@@ -32,7 +41,7 @@ Send 100 email to mail.server.com:25 100 workers
 ./bomberman -host=mail.server.com:25 -from=test@mydomain.com -to=user@remotedomain.com -workers=100 -jobs=50 -count=100 -outbound=YOUR_PUBLIC_IP -helo=mydomain.com -subject="Test Email"
 ```
 
-## output
+## Output
 
 
 ```
@@ -49,6 +58,15 @@ SUCCESS (10)	: min. 464.569102ms, max. 589.784965ms, med. 478.931928ms
 DIAL (10)	: min. 8.480266ms, max. 16.660143ms, med. 9.456583ms
 TOUCH (10)	: min. 136.853636ms, max. 245.775096ms, med. 147.872106ms
 ```
+
+## Features
+
+* Linux/BSD/Windows supported.
+* SMTP RFC 5321 support
+* Outbount IP selection
+* SMTP Command duration min, max, mean metrics
+* Multi-thread support
+* Workers and Job Queue support
 
 ## Built With
 
