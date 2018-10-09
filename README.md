@@ -51,7 +51,7 @@ Bomberman - SMTP Performans Test Tool
 Message Count	: 1000
 Error		: 0
 Start		: 2018-10-09 14:52:28.770383156 +0300 EEST m=+0.000754807
-End		    : 2018-10-09 14:53:40.00788398 +0300 EEST m=+71.238255580
+End		: 2018-10-09 14:53:40.00788398 +0300 EEST m=+71.238255580
 Time		: 1m11.237500773s
 
 Outbounds:
