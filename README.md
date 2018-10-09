@@ -27,6 +27,8 @@ download
 | workers | Thread workers for SMTP client. Default: 100 |
 | jobs | Job queue lenght in workers. Default: 50 |
 | outbound | Outbound IP address for SMTP client |
+| balance | Tool is use all IP address for outbound ip with sequental balance. Defalut: false |
+
 
 ## Server Configuration Checklist
 
@@ -35,28 +37,39 @@ download
 
 ## Usage
 
-Send 100 email to mail.server.com:25 100 workers
+Send 10 email to mail.server.com:25 50 workers
 
 ```
-./bomberman -host=mail.server.com:25 -from=test@mydomain.com -to=user@remotedomain.com -workers=100 -jobs=50 -count=100 -outbound=YOUR_PUBLIC_IP -helo=mydomain.com -subject="Test Email"
+./bomberman -host=mail.server.com:25 -from=test@mydomain.com -to=user@remotedomain.com -workers=50 -jobs=25 -count=10 -balance
 ```
 
 ## Output
 
-
 ```
-Count	: 10
-Error	: 0
-Start	: 2018-10-08 23:07:17.202394064 +0300 EEST m=+0.000830547
-End	: 2018-10-08 23:07:17.792740992 +0300 EEST m=+0.591177492
-Time	: 590.346945ms
-HELO (10)	: min. 183.457938ms, max. 292.501073ms, med. 197.830802ms
-MAIL (10)	: min. 230.36918ms, max. 339.589489ms, med. 246.102343ms
-RCPT (10)	: min. 276.966907ms, max. 386.162844ms, med. 292.913193ms
-DATA (10)	: min. 417.385041ms, max. 542.583022ms, med. 431.915842ms
-SUCCESS (10)	: min. 464.569102ms, max. 589.784965ms, med. 478.931928ms
-DIAL (10)	: min. 8.480266ms, max. 16.660143ms, med. 9.456583ms
-TOUCH (10)	: min. 136.853636ms, max. 245.775096ms, med. 147.872106ms
+Bomberman - SMTP Performans Test Tool
+---------------------------------
+Message Count	: 1000
+Error		: 0
+Start		: 2018-10-09 14:52:28.770383156 +0300 EEST m=+0.000754807
+End		    : 2018-10-09 14:53:40.00788398 +0300 EEST m=+71.238255580
+Time		: 1m11.237500773s
+
+Outbounds:
+
+10.10.10.216	: 250
+10.10.10.222	: 250
+10.10.10.238	: 250
+10.10.10.239	: 250
+
+SMTP Commands:
+
+SUCCESS (999)	: min. 508.368509ms, max. 28.674771244s, med. 6.8859535s
+DIAL (999)	: min. 8.095947ms, max. 53.888706ms, med. 9.773941ms
+TOUCH (999)	: min. 112.503563ms, max. 20.010673679s, med. 912.603978ms
+HELO (999)	: min. 159.324966ms, max. 20.057296582s, med. 1.516430795s
+MAIL (999)	: min. 206.220242ms, max. 20.104045938s, med. 2.004478873s
+RCPT (999)	: min. 260.078873ms, max. 20.151196116s, med. 2.401031078s
+DATA (999)	: min. 461.493221ms, max. 23.624083138s, med. 6.311582036s
 ```
 
 ## Features
@@ -70,9 +83,13 @@ TOUCH (10)	: min. 136.853636ms, max. 245.775096ms, med. 147.872106ms
 
 ## Built With
 
-* [grpool](github.com/ivpusic/grpool) - Lightweight Goroutine pool
+* [grpool](https://github.com/ivpusic/grpool) - Lightweight Goroutine pool
 * [net/smtp](https://golang.org/pkg/net/smtp/) - Golang SMTP Package
 
 ## Author
 
 * **Oğuzhan** - *MaestroPanel Tech Lead* - [c1982](https://github.com/c1982)
+
+## ARO
+
+Cemil and Rıza ^_^
