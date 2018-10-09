@@ -1,5 +1,5 @@
 # Bomberman
-SMTP Load Test tool 
+SMTP Performance Test Tool
 
 ## Installation
 

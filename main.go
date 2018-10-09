@@ -101,7 +101,7 @@ func main() {
 	pool.WaitAll()
 	endtime := time.Now()
 
-	fmt.Println("Bomberman - SMTP Performans Test Tool")
+	fmt.Println("Bomberman - SMTP Performance Test Tool")
 	fmt.Println("---------------------------------")
 	fmt.Printf("Message Count\t: %d\n", totalCount)
 	fmt.Printf("Error\t\t: %d\n", errorCount)
