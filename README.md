@@ -46,7 +46,7 @@ Send 10 email to mail.server.com:25 50 workers
 ## Output
 
 ```
-Bomberman - SMTP Performans Test Tool
+Bomberman - SMTP Performance Test Tool
 ---------------------------------
 Message Count	: 1000
 Error		: 0
