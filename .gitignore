@@ -5,5 +5,5 @@
 *.test
 *.out
 .glide/
-bomberman
+bomberman*
 .vscode/launch.json
