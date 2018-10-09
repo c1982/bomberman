@@ -11,7 +11,8 @@ $ go get github.com/c1982/bomberman
 
 or
 
-download
+
+[download](https://github.com/c1982/bomberman/releases)
 
 ## Flags
 
