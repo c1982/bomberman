@@ -80,6 +80,7 @@ DATA (999)	: min. 461.493221ms, max. 23.624083138s, med. 6.311582036s
 * SMTP Command duration min, max, mean metrics
 * Multi-thread support
 * Workers and Job Queue support
+* Balancing outbound ip address automatically
 
 ## Built With
 
