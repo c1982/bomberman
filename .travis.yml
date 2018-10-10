@@ -3,8 +3,10 @@ sudo: required
 language: go
 go:
  - tip
+ - "1.10"
 
 script: go test -v -covermode=atomic -coverprofile=coverage.out
 
 after_success:
   - bash <(curl -s https://codecov.io/bash)
+
