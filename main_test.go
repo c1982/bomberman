@@ -102,7 +102,7 @@ func Test_metricKeys(t *testing.T) {
 	keys := metricKeys(s)
 
 	if len(keys) != 3 {
-		t.Error("invalid lenght")
+		t.Error("invalid length")
 	}
 }
 
