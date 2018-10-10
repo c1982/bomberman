@@ -16,73 +16,138 @@ import (
 	"github.com/ivpusic/grpool"
 )
 
-func main() {
+var (
+	host, from, to, subject, body, helo          string
+	workers, count, jobs, errorCount, totalCount int
 
-	var errorCount int
-	var totalCount int
-	var outbound string
-	var metrics []map[string]time.Duration
-	var outbndcnt map[string]int
+	metrics       []map[string]time.Duration
+	outbountstats map[string]int
+
+	balance  bool
+	outbound string
+)
+
+const (
+	metricTemplate = `` +
+		`Bomberman - SMTP Performance Test Tool` + "\n" +
+		`--------------------------------------` + "\n" +
+		`Message Count		: %d` + "\n" +
+		`Error			: %d` + "\n" +
+		`Start			: %v` + "\n" +
+		`End			: %v` + "\n" +
+		`Time			: %v` + "\n"
+
+	dialTimeout = time.Second * 6
+)
+
+func init() {
+
+	flag.StringVar(&host, "host", "localhost:25", "-host=example.org:25")
+	flag.StringVar(&from, "from", "me@example.org", "-from=me@example.org")
+	flag.StringVar(&to, "to", "to@example.net", "-to=me@example.net")
+	flag.StringVar(&subject, "subject", "Test Email", "-subject=Test Email")
+	flag.StringVar(&body, "body", "Load Test Generator", "-body=Load Test Generator")
+	flag.StringVar(&helo, "helo", "mail.example.org", "-helo=mail.example.org")
+	flag.StringVar(&outbound, "outbound", "", "-outbound=0.0.0.0")
+	flag.IntVar(&count, "count", 10, "-count=10")
+	flag.IntVar(&workers, "workers", 100, "-workers=100")
+	flag.IntVar(&jobs, "jobs", 50, "-jobs=50")
+	flag.BoolVar(&balance, "balance", false, "-balance")
+	flag.Usage = usage
+
+	metrics = []map[string]time.Duration{}
+	outbountstats = map[string]int{}
+}
+
+func usage() {
+
+	fmt.Fprintf(os.Stderr, "Usage: %s [OPTIONS]\n\n", os.Args[0])
+	fmt.Fprintln(os.Stderr, "OPTIONS:")
+	flag.PrintDefaults()
+	fmt.Fprintln(os.Stderr, "USAGE:")
+	fmt.Fprintln(os.Stderr, "./bomberman -host=mail.server.com:25 -from=test@mydomain.com -to=user@remotedomain.com -workers=100 -jobs=50 -count=100 -outbound=YOUR_PUBLIC_IP -helo=mydomain.com -subject=\"Test Email\"")
+	fmt.Fprintln(os.Stderr, "")
+}
+
+func main() {
 
 	numCPUs := runtime.NumCPU()
 	runtime.GOMAXPROCS(numCPUs)
 
-	host := flag.String("host", "localhost:25", "-host=example.org:25")
-	from := flag.String("from", "me@example.org", "-from=me@example.org")
-	to := flag.String("to", "to@example.net", "-to=me@example.net")
-	subject := flag.String("subject", "Test Email", "-subject=Test Email")
-	body := flag.String("body", "Load Test Generator", "-body=Load Test Generator")
-	helo := flag.String("helo", "mail.example.org", "-helo=mail.example.org")
-	count := flag.Int("count", 10, "-count=10")
-	workers := flag.Int("workers", 100, "-workers=100")
-	jobs := flag.Int("jobs", 50, "-jobs=50")
-	outboundip := flag.String("outbound", "", "-outbound=4.2.2.1")
-	balance := flag.Bool("balance", false, "-balance")
-
-	flag.Usage = usage
-
 	flag.Parse()
 
-	errorCount = 0
-	totalCount = 0
 	startTime := time.Now()
-	metrics = []map[string]time.Duration{}
-	outbndcnt = map[string]int{}
+	start()
+	endtime := time.Now()
 
-	pool := grpool.NewPool(*workers, *jobs)
+	printResults(balance, totalCount, errorCount, startTime, endtime, outbountstats, metrics)
+}
+
+func printResults(balanced bool, totalcnt, errorcnt int, startTime, endtime time.Time, ipcount map[string]int, stats []map[string]time.Duration) {
+
+	fmt.Printf(metricTemplate,
+		totalcnt,
+		errorcnt,
+		startTime,
+		endtime,
+		endtime.Sub(startTime))
+
+	if balanced {
+		fmt.Println("")
+		fmt.Println("Outbounds:")
+		fmt.Println("")
+		for k, v := range ipcount {
+			fmt.Printf("%s\t: %d\n", k, v)
+		}
+	}
+
+	fmt.Println("")
+	fmt.Println("SMTP Commands:")
+	fmt.Println("")
+
+	mkeys := metricKeys(stats)
+
+	for i := 0; i < len(mkeys); i++ {
+		m := mkeys[i]
+		min, max, me := getMetric(m, stats)
+		cnt := countMetric(m, stats)
+		fmt.Printf("%s (%d)\t: min. %v, max. %v, med. %v\n", m, cnt, min, max, me)
+	}
+}
+
+func start() {
+	pool := grpool.NewPool(workers, jobs)
 
 	defer pool.Release()
-	pool.WaitCount(*count)
+	pool.WaitCount(count)
 
-	outbounds, err := ipv4list()
+	iplist, err := ipv4list()
 
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	for i := 0; i < *count; i++ {
+	for i := 0; i < count; i++ {
 
-		if *balance {
-			outbound = sequental(i, outbounds)
+		if balance {
+			outbound = sequental(i, iplist)
 
-			if _, ok := outbndcnt[outbound]; ok {
-				outbndcnt[outbound] = outbndcnt[outbound] + 1
+			if _, ok := outbountstats[outbound]; ok {
+				outbountstats[outbound] = outbountstats[outbound] + 1
 			} else {
-				outbndcnt[outbound] = 1
+				outbountstats[outbound] = 1
 			}
-		} else {
-			outbound = *outboundip
 		}
 
 		pool.JobQueue <- func() {
 
-			metric, err := SendMail(outbound,
-				*host,
-				*from,
-				*to,
-				*subject,
-				*body,
-				*helo)
+			metric, err := sendMail(outbound,
+				host,
+				from,
+				to,
+				subject,
+				body,
+				helo)
 
 			if err != nil {
 				fmt.Printf("%d: %v\n", totalCount+1, err)
@@ -99,41 +164,9 @@ func main() {
 	}
 
 	pool.WaitAll()
-	endtime := time.Now()
-
-	fmt.Println("Bomberman - SMTP Performance Test Tool")
-	fmt.Println("---------------------------------")
-	fmt.Printf("Message Count\t: %d\n", totalCount)
-	fmt.Printf("Error\t\t: %d\n", errorCount)
-	fmt.Printf("Start\t\t: %v\n", startTime)
-	fmt.Printf("End\t\t: %v\n", endtime)
-	fmt.Printf("Time\t\t: %v\n", endtime.Sub(startTime))
-
-	if *balance {
-		fmt.Println("")
-		fmt.Println("Outbounds:")
-		fmt.Println("")
-		for k, v := range outbndcnt {
-			fmt.Printf("%s\t: %d\n", k, v)
-		}
-	}
-
-	fmt.Println("")
-	fmt.Println("SMTP Commands:")
-	fmt.Println("")
-
-	mkeys := metricKeys(metrics)
-
-	for i := 0; i < len(mkeys); i++ {
-		m := mkeys[i]
-		min, max, me := getMetric(m, metrics)
-		cnt := countMetric(m, metrics)
-		fmt.Printf("%s (%d)\t: min. %v, max. %v, med. %v\n", m, cnt, min, max, me)
-	}
 }
 
-//SendMail mail.
-func SendMail(outbound, smtpServer, from, to, subject, body, helo string) (metric map[string]time.Duration, err error) {
+func sendMail(outbound, smtpServer, from, to, subject, body, helo string) (metric map[string]time.Duration, err error) {
 
 	var wc io.WriteCloser
 	var msg string
@@ -141,7 +174,7 @@ func SendMail(outbound, smtpServer, from, to, subject, body, helo string) (metri
 	startTime := time.Now()
 	metric = map[string]time.Duration{}
 	host, _, _ := net.SplitHostPort(smtpServer)
-	conn, err := newDialer(outbound, smtpServer)
+	conn, err := newDialer(outbound, smtpServer, dialTimeout)
 
 	if err != nil {
 		err = fmt.Errorf("DIAL: %v (out:%s)", err, outbound)
@@ -189,6 +222,7 @@ func SendMail(outbound, smtpServer, from, to, subject, body, helo string) (metri
 	if err != nil {
 		err = fmt.Errorf("RCPT: %v", err)
 		metric["RCPT"] = time.Now().Sub(startTime)
+
 		return
 	}
 
@@ -205,6 +239,7 @@ func SendMail(outbound, smtpServer, from, to, subject, body, helo string) (metri
 	if err != nil {
 		err = fmt.Errorf("DATA: %v", err)
 		metric["DATA"] = time.Now().Sub(startTime)
+
 		return
 	}
 
@@ -215,6 +250,7 @@ func SendMail(outbound, smtpServer, from, to, subject, body, helo string) (metri
 	if err != nil {
 		err = fmt.Errorf("DATA: %v", err)
 		metric["DATA"] = time.Now().Sub(startTime)
+
 		return
 	}
 
@@ -225,6 +261,7 @@ func SendMail(outbound, smtpServer, from, to, subject, body, helo string) (metri
 	if err != nil {
 		err = fmt.Errorf("QUIT: %v", err)
 		metric["QUIT"] = time.Now().Sub(startTime)
+
 		return
 	}
 
@@ -250,6 +287,10 @@ func getMetric(name string, metrics []map[string]time.Duration) (max, min, med t
 	sort.Slice(list, func(i, j int) bool {
 		return list[i] > list[j]
 	})
+
+	if len(list) == 0 {
+		return
+	}
 
 	min = list[0]
 	max = list[len(list)-1]
@@ -305,15 +346,6 @@ func isContain(key string, keys []string) bool {
 	return exists
 }
 
-func usage() {
-	fmt.Fprintf(os.Stderr, "Usage: %s [OPTIONS]\n\n", os.Args[0])
-	fmt.Fprintln(os.Stderr, "OPTIONS:")
-	flag.PrintDefaults()
-	fmt.Fprintln(os.Stderr, "USAGE:")
-	fmt.Fprintln(os.Stderr, "./bomberman -host=mail.server.com:25 -from=test@mydomain.com -to=user@remotedomain.com -workers=100 -jobs=50 -count=100 -outbound=YOUR_PUBLIC_IP -helo=mydomain.com -subject=\"Test Email\"")
-	fmt.Fprintln(os.Stderr, "")
-}
-
 func ipv4list() (iplist []string, err error) {
 
 	addrs, err := net.InterfaceAddrs()
@@ -346,9 +378,13 @@ func ipv4list() (iplist []string, err error) {
 	return
 }
 
-func newDialer(outboundip, remotehost string) (conn net.Conn, err error) {
+func newDialer(outboundip, remotehost string, timeout time.Duration) (conn net.Conn, err error) {
 
-	dialer := &net.Dialer{Timeout: time.Second * 6}
+	if outboundip == "" {
+		return net.Dial("tcp", remotehost)
+	}
+
+	dialer := &net.Dialer{Timeout: timeout}
 	dialer.LocalAddr = &net.TCPAddr{IP: net.ParseIP(outboundip)}
 
 	conn, err = dialer.Dial("tcp", remotehost)
