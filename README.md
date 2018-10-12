@@ -3,6 +3,8 @@ SMTP Performance Test Tool
 
 [![Build Status](https://travis-ci.org/c1982/bomberman.svg?branch=master)](https://travis-ci.org/c1982/bomberman) [![Go Report Card](https://goreportcard.com/badge/github.com/c1982/bomberman)](https://goreportcard.com/report/github.com/c1982/bomberman)
 
+![Bomberman Logo](https://github.com/c1982/bomberman/blob/master/logo.jpg?raw=true)
+
 
 ## Installation
 
@@ -56,21 +58,21 @@ Bomberman - SMTP Performance Test Tool
 --------------------------------------
 Message Count		: 1022
 Message Size		: 75K
-Error			    : 168
-Start			    : 2018-10-12 06:42:56.808098931 +0300 EEST m=+0.000932257
-End			        : 2018-10-12 06:43:34.049561955 +0300 EEST m=+37.242392313
-Time			    : 37.241460056s
+Error			: 168
+Start			: 2018-10-12 06:42:56.808098931 +0300 EEST m=+0.000932257
+End			: 2018-10-12 06:43:34.049561955 +0300 EEST m=+37.242392313
+Time			: 37.241460056s
 
 Source IP Stats:
 
-10.0.5.216		    : 256
-10.0.5.222		    : 256
-10.0.5.238		    : 256
-10.0.5.239		    : 256
+10.0.5.216		: 256
+10.0.5.222		: 256
+10.0.5.238		: 256
+10.0.5.239		: 256
 
 Destination IP Stats:
 
-5.4.0.248:25	    : 856
+5.4.0.248:25	: 856
 
 SMTP Commands:
 
