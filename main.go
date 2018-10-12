@@ -109,8 +109,8 @@ func printResults(balanced bool, startTime, endtime time.Time) {
 
 	fmt.Printf(metricTemplate,
 		metric.TotalCnt,
-		size,
 		metric.ErrorCnt,
+		size,
 		startTime,
 		endtime,
 		endtime.Sub(startTime))
