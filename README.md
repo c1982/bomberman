@@ -5,7 +5,6 @@ SMTP Performance Test Tool
 
 ![Bomberman Logo](https://github.com/c1982/bomberman/blob/master/logo.jpg?raw=true)
 
-
 ## Installation
 
 bomberman requires Go 1.11 or later.
@@ -15,7 +14,6 @@ $ go get github.com/c1982/bomberman
 ```
 
 or
-
 
 [download](https://github.com/c1982/bomberman/releases)
 
@@ -27,15 +25,14 @@ or
 | from | From email address | 
 | to | To email address| 
 | subject | Email subject text | 
-| size | Set email size Kilobytes (1024 Kilobyte = 1Mbyte) |
+| size | Set email size Kilobytes (1024 Kilobyte = 1Mbyte). Default: 5Kb |
 | helo | SMTP client helo name. Default: mail.server.com | 
 | count | Email message count. Default: 10|
-| workers | Thread workers for SMTP client. Default: 100 |
-| jobs | Job queue lenght in workers. Default: 50 |
+| workers | Thread workers for SMTP client. Default: 10 |
+| jobs | Job queue lenght in workers. Default: 10 |
 | outbound | Outbound IP address for SMTP client |
 | showerror | Print SMTP errors |
 | balance | Tool is use all IP address for outbound ip with sequental balance. Defalut: false |
-
 
 ## Server Configuration Checklist
 
@@ -45,7 +42,7 @@ or
 
 ## Usage
 
-Send 10 email to mail.server.com:25 50 workers
+Send 50 email to mail.server.com:25 50 workers
 
 ```
 ./bomberman -host=mail.server.com:25 -from=test@mydomain.com -to=user@remotedomain.com -workers=50 -jobs=50 -count=50 -size=75 -balance
@@ -72,7 +69,7 @@ Source IP Stats:
 
 Destination IP Stats:
 
-5.4.0.248:25	: 856
+5.4.0.248:25            : 856
 
 SMTP Commands:
 
@@ -81,7 +78,7 @@ DIAL (1022)	        : min. 27.323µs, max. 6.000565014s, med. 1.511920428s
 HELO (854)	        : min. 34.061919ms, max. 3.80865823s, med. 343.306129ms
 MAIL (854)	        : min. 42.455906ms, max. 6.150506182s, med. 943.313477ms
 RCPT (854)	        : min. 34.972014ms, max. 3.151397545s, med. 497.683671ms
-SUCCESS (854)	    : min. 1.480909163s, max. 37.223728269s, med. 15.673002296s
+SUCCESS (854)           : min. 1.480909163s, max. 37.223728269s, med. 15.673002296s
 TOUCH (854)	        : min. 112.109537ms, max. 17.759899662s, med. 3.985871341s
 ```
 

@@ -37,9 +37,9 @@ const (
 	metricTemplate = `` +
 		`Bomberman - SMTP Performance Test Tool` + "\n" +
 		`--------------------------------------` + "\n" +
-		`Message Count		: %d` + "\n" +
-		`Message Size		: %dK` + "\n" +
+		`Count			: %d` + "\n" +
 		`Error			: %d` + "\n" +
+		`Size			: %dK` + "\n" +
 		`Start			: %v` + "\n" +
 		`End			: %v` + "\n" +
 		`Time			: %v` + "\n"
@@ -87,7 +87,7 @@ func usage() {
 	fmt.Fprintln(os.Stderr, "OPTIONS:")
 	flag.PrintDefaults()
 	fmt.Fprintln(os.Stderr, "USAGE:")
-	fmt.Fprintln(os.Stderr, "./bomberman -host=mail.server.com:25 -from=test@mydomain.com -to=user@remotedomain.com -workers=100 -jobs=100 -count=100 -outbound=YOUR_PUBLIC_IP -helo=mydomain.com -subject=\"Test Email\"")
+	fmt.Fprintln(os.Stderr, "./bomberman -host=mail.server.com:25 -from=test@mydomain.com -to=user@remotedomain.com -workers=100 -jobs=100 -count=100 -helo=mydomain.com -balance -size=2")
 	fmt.Fprintln(os.Stderr, "")
 }
 
@@ -123,12 +123,10 @@ func printResults(balanced bool, startTime, endtime time.Time) {
 	}
 
 	if len(metric.DstIPStats) > 1 {
-
 		fmt.Println("")
 		fmt.Println("Destination IP Stats:")
 		fmt.Println("")
 		printSlice(metric.DstIPStats, "%s\t: %d\n")
-
 	}
 
 	fmt.Println("")
@@ -143,6 +141,7 @@ func printResults(balanced bool, startTime, endtime time.Time) {
 		cnt := countMetric(m, metric.Durations)
 		fmt.Printf("%s (%d)\t: min. %v, max. %v, med. %v\n", m, cnt, min, max, me)
 	}
+	fmt.Println("")
 }
 
 func start() {
@@ -187,9 +186,11 @@ func start() {
 				metric.ErrorCnt++
 			}
 
-			metric.DstIPStats = append(metric.DstIPStats, remoteip)
-			metric.Durations = append(metric.Durations, durs)
+			if remoteip != "" {
+				metric.DstIPStats = append(metric.DstIPStats, remoteip)
+			}
 
+			metric.Durations = append(metric.Durations, durs)
 		}
 	}
 
@@ -267,12 +268,7 @@ func sendMail(outbound, smtpServer, from, to, subject, body, helo string) (metri
 
 	dataTime := time.Now()
 
-	msg = ""
-	msg += fmt.Sprintf("from: <%s>\r\n", from)
-	msg += fmt.Sprintf("to: %s\r\n", to)
-	msg += fmt.Sprintf("Subject: %s\r\n", subject)
-	msg += fmt.Sprintf("\r\n%s", body)
-
+	msg = fmt.Sprintf(bodyTemplate, from, to, subject, body)
 	wc, err = c.Data()
 
 	if err != nil {
