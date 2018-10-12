@@ -3,6 +3,7 @@ SMTP Performance Test Tool
 
 [![Build Status](https://travis-ci.org/c1982/bomberman.svg?branch=master)](https://travis-ci.org/c1982/bomberman) [![Go Report Card](https://goreportcard.com/badge/github.com/c1982/bomberman)](https://goreportcard.com/report/github.com/c1982/bomberman)
 
+
 ## Installation
 
 bomberman requires Go 1.11 or later.
