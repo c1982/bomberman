@@ -24,55 +24,62 @@ or
 | from | From email address | 
 | to | To email address| 
 | subject | Email subject text | 
-| body | Email body text | 
+| size | Set email size Kilobytes (1024 Kilobyte = 1Mbyte) |
 | helo | SMTP client helo name. Default: mail.server.com | 
 | count | Email message count. Default: 10|
 | workers | Thread workers for SMTP client. Default: 100 |
 | jobs | Job queue lenght in workers. Default: 50 |
 | outbound | Outbound IP address for SMTP client |
+| showerror | Print SMTP errors |
 | balance | Tool is use all IP address for outbound ip with sequental balance. Defalut: false |
 
 
 ## Server Configuration Checklist
 
-* Check SPF value in domain dns zone
-* Check PTR record your outbound IP address
+* Set SPF value in from email address domain.
+* Set PTR record your outbound IP addresses
+* Increase ulimit on your server (ulimit -n 10000)
 
 ## Usage
 
 Send 10 email to mail.server.com:25 50 workers
 
 ```
-./bomberman -host=mail.server.com:25 -from=test@mydomain.com -to=user@remotedomain.com -workers=50 -jobs=25 -count=10 -balance
+./bomberman -host=mail.server.com:25 -from=test@mydomain.com -to=user@remotedomain.com -workers=50 -jobs=50 -count=50 -size=75 -balance
 ```
 
 ## Output
 
 ```
 Bomberman - SMTP Performance Test Tool
----------------------------------
-Message Count	: 1000
-Error		: 0
-Start		: 2018-10-09 14:52:28.770383156 +0300 EEST m=+0.000754807
-End		: 2018-10-09 14:53:40.00788398 +0300 EEST m=+71.238255580
-Time		: 1m11.237500773s
+--------------------------------------
+Message Count		: 1022
+Message Size		: 75K
+Error			    : 168
+Start			    : 2018-10-12 06:42:56.808098931 +0300 EEST m=+0.000932257
+End			        : 2018-10-12 06:43:34.049561955 +0300 EEST m=+37.242392313
+Time			    : 37.241460056s
 
-Outbounds:
+Source IP Stats:
 
-10.10.10.216	: 250
-10.10.10.222	: 250
-10.10.10.238	: 250
-10.10.10.239	: 250
+10.0.5.216		    : 256
+10.0.5.222		    : 256
+10.0.5.238		    : 256
+10.0.5.239		    : 256
+
+Destination IP Stats:
+
+5.4.0.248:25	    : 856
 
 SMTP Commands:
 
-SUCCESS (999)	: min. 508.368509ms, max. 28.674771244s, med. 6.8859535s
-DIAL (999)	: min. 8.095947ms, max. 53.888706ms, med. 9.773941ms
-TOUCH (999)	: min. 112.503563ms, max. 20.010673679s, med. 912.603978ms
-HELO (999)	: min. 159.324966ms, max. 20.057296582s, med. 1.516430795s
-MAIL (999)	: min. 206.220242ms, max. 20.104045938s, med. 2.004478873s
-RCPT (999)	: min. 260.078873ms, max. 20.151196116s, med. 2.401031078s
-DATA (999)	: min. 461.493221ms, max. 23.624083138s, med. 6.311582036s
+DATA (854)	        : min. 775.377638ms, max. 20.662139316s, med. 8.870254307s
+DIAL (1022)	        : min. 27.323µs, max. 6.000565014s, med. 1.511920428s
+HELO (854)	        : min. 34.061919ms, max. 3.80865823s, med. 343.306129ms
+MAIL (854)	        : min. 42.455906ms, max. 6.150506182s, med. 943.313477ms
+RCPT (854)	        : min. 34.972014ms, max. 3.151397545s, med. 497.683671ms
+SUCCESS (854)	    : min. 1.480909163s, max. 37.223728269s, med. 15.673002296s
+TOUCH (854)	        : min. 112.109537ms, max. 17.759899662s, med. 3.985871341s
 ```
 
 ## Features
@@ -84,6 +91,9 @@ DATA (999)	: min. 461.493221ms, max. 23.624083138s, med. 6.311582036s
 * Multi-thread support
 * Workers and Job Queue support
 * Balancing outbound ip address automatically
+* Set email body size of Kilobyte
+* Count and Report destination IP changes 
+* Count and Report source IP changes
 
 ## Built With
 

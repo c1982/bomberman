@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"log"
+	"math/rand"
 	"net"
 	"net/smtp"
 	"os"
@@ -16,15 +17,20 @@ import (
 	"github.com/ivpusic/grpool"
 )
 
+type stats struct {
+	Durations  []map[string]time.Duration
+	SrcIPStats []string
+	DstIPStats []string
+	ErrorCnt   int
+	TotalCnt   int
+}
+
 var (
-	host, from, to, subject, body, helo          string
-	workers, count, jobs, errorCount, totalCount int
-
-	metrics       []map[string]time.Duration
-	outbountstats map[string]int
-
-	balance  bool
-	outbound string
+	metric                              stats
+	host, from, to, subject, body, helo string
+	workers, count, jobs, size, timeout int
+	balance, showerror                  bool
+	outbound                            string
 )
 
 const (
@@ -32,12 +38,21 @@ const (
 		`Bomberman - SMTP Performance Test Tool` + "\n" +
 		`--------------------------------------` + "\n" +
 		`Message Count		: %d` + "\n" +
+		`Message Size		: %dK` + "\n" +
 		`Error			: %d` + "\n" +
 		`Start			: %v` + "\n" +
 		`End			: %v` + "\n" +
 		`Time			: %v` + "\n"
 
-	dialTimeout = time.Second * 6
+	bodyTemplate = `from: <%s>` + "\r\n" +
+		`to: %s` + "\r\n" +
+		`Subject: %s` + "\r\n\r\n" +
+		`%s`
+
+	dialTimeout   = time.Second * 6
+	letterIdxBits = 6
+	letterIdxMask = 1<<letterIdxBits - 1
+	letterIdxMax  = 63 / letterIdxBits
 )
 
 func init() {
@@ -46,17 +61,24 @@ func init() {
 	flag.StringVar(&from, "from", "me@example.org", "-from=me@example.org")
 	flag.StringVar(&to, "to", "to@example.net", "-to=me@example.net")
 	flag.StringVar(&subject, "subject", "Test Email", "-subject=Test Email")
-	flag.StringVar(&body, "body", "Load Test Generator", "-body=Load Test Generator")
 	flag.StringVar(&helo, "helo", "mail.example.org", "-helo=mail.example.org")
 	flag.StringVar(&outbound, "outbound", "", "-outbound=0.0.0.0")
+	flag.IntVar(&timeout, "timeout", 6, "-timeout=6 (second)")
 	flag.IntVar(&count, "count", 10, "-count=10")
-	flag.IntVar(&workers, "workers", 100, "-workers=100")
-	flag.IntVar(&jobs, "jobs", 50, "-jobs=50")
+	flag.IntVar(&workers, "workers", 10, "-workers=100")
+	flag.IntVar(&jobs, "jobs", 10, "-jobs=50")
+	flag.IntVar(&size, "size", 5, "size=5 (Kilobyte)")
 	flag.BoolVar(&balance, "balance", false, "-balance")
+	flag.BoolVar(&showerror, "showerror", true, "-showerror")
+	//TODO: timeout
+
 	flag.Usage = usage
 
-	metrics = []map[string]time.Duration{}
-	outbountstats = map[string]int{}
+	metric = stats{
+		Durations:  []map[string]time.Duration{},
+		SrcIPStats: []string{},
+		DstIPStats: []string{},
+	}
 }
 
 func usage() {
@@ -65,7 +87,7 @@ func usage() {
 	fmt.Fprintln(os.Stderr, "OPTIONS:")
 	flag.PrintDefaults()
 	fmt.Fprintln(os.Stderr, "USAGE:")
-	fmt.Fprintln(os.Stderr, "./bomberman -host=mail.server.com:25 -from=test@mydomain.com -to=user@remotedomain.com -workers=100 -jobs=50 -count=100 -outbound=YOUR_PUBLIC_IP -helo=mydomain.com -subject=\"Test Email\"")
+	fmt.Fprintln(os.Stderr, "./bomberman -host=mail.server.com:25 -from=test@mydomain.com -to=user@remotedomain.com -workers=100 -jobs=100 -count=100 -outbound=YOUR_PUBLIC_IP -helo=mydomain.com -subject=\"Test Email\"")
 	fmt.Fprintln(os.Stderr, "")
 }
 
@@ -80,68 +102,77 @@ func main() {
 	start()
 	endtime := time.Now()
 
-	printResults(balance, totalCount, errorCount, startTime, endtime, outbountstats, metrics)
+	printResults(balance, startTime, endtime)
 }
 
-func printResults(balanced bool, totalcnt, errorcnt int, startTime, endtime time.Time, ipcount map[string]int, stats []map[string]time.Duration) {
+func printResults(balanced bool, startTime, endtime time.Time) {
 
 	fmt.Printf(metricTemplate,
-		totalcnt,
-		errorcnt,
+		metric.TotalCnt,
+		size,
+		metric.ErrorCnt,
 		startTime,
 		endtime,
 		endtime.Sub(startTime))
 
 	if balanced {
 		fmt.Println("")
-		fmt.Println("Outbounds:")
+		fmt.Println("Source IP Stats:")
 		fmt.Println("")
-		for k, v := range ipcount {
-			fmt.Printf("%s\t: %d\n", k, v)
-		}
+		printSlice(metric.SrcIPStats, "%s\t\t: %d\n")
+	}
+
+	if len(metric.DstIPStats) > 1 {
+
+		fmt.Println("")
+		fmt.Println("Destination IP Stats:")
+		fmt.Println("")
+		printSlice(metric.DstIPStats, "%s\t: %d\n")
+
 	}
 
 	fmt.Println("")
 	fmt.Println("SMTP Commands:")
 	fmt.Println("")
 
-	mkeys := metricKeys(stats)
+	mkeys := metricKeys(metric.Durations)
 
 	for i := 0; i < len(mkeys); i++ {
 		m := mkeys[i]
-		min, max, me := getMetric(m, stats)
-		cnt := countMetric(m, stats)
+		min, max, me := getMetric(m, metric.Durations)
+		cnt := countMetric(m, metric.Durations)
 		fmt.Printf("%s (%d)\t: min. %v, max. %v, med. %v\n", m, cnt, min, max, me)
 	}
 }
 
 func start() {
-	pool := grpool.NewPool(workers, jobs)
 
+	pool := grpool.NewPool(workers, jobs)
 	defer pool.Release()
 	pool.WaitCount(count)
 
 	iplist, err := ipv4list()
 
 	if err != nil {
-		log.Fatal(err)
+		log.Fatal("pool not created:", err)
 	}
+
+	body = createBodyFixedSize(size)
 
 	for i := 0; i < count; i++ {
 
 		if balance {
 			outbound = sequental(i, iplist)
-
-			if _, ok := outbountstats[outbound]; ok {
-				outbountstats[outbound] = outbountstats[outbound] + 1
-			} else {
-				outbountstats[outbound] = 1
-			}
+			metric.SrcIPStats = append(metric.SrcIPStats, outbound)
 		}
 
 		pool.JobQueue <- func() {
 
-			metric, err := sendMail(outbound,
+			metric.TotalCnt++
+
+			defer pool.JobDone()
+
+			durs, remoteip, err := sendMail(outbound,
 				host,
 				from,
 				to,
@@ -150,28 +181,29 @@ func start() {
 				helo)
 
 			if err != nil {
-				fmt.Printf("%d: %v\n", totalCount+1, err)
-				errorCount++
+				if showerror {
+					fmt.Printf("%d: %v\n", metric.TotalCnt, err)
+				}
+				metric.ErrorCnt++
 			}
 
-			metrics = append(metrics, metric)
+			metric.DstIPStats = append(metric.DstIPStats, remoteip)
+			metric.Durations = append(metric.Durations, durs)
 
-			defer func() {
-				totalCount++
-				pool.JobDone()
-			}()
 		}
 	}
 
 	pool.WaitAll()
+
 }
 
-func sendMail(outbound, smtpServer, from, to, subject, body, helo string) (metric map[string]time.Duration, err error) {
+func sendMail(outbound, smtpServer, from, to, subject, body, helo string) (metric map[string]time.Duration, remoteip string, err error) {
 
 	var wc io.WriteCloser
 	var msg string
 
 	startTime := time.Now()
+
 	metric = map[string]time.Duration{}
 	host, _, _ := net.SplitHostPort(smtpServer)
 	conn, err := newDialer(outbound, smtpServer, dialTimeout)
@@ -182,51 +214,58 @@ func sendMail(outbound, smtpServer, from, to, subject, body, helo string) (metri
 		return
 	}
 
+	remoteip = conn.RemoteAddr().String() //remoteip
 	metric["DIAL"] = time.Now().Sub(startTime)
 
+	newclientTime := time.Now()
 	c, err := smtp.NewClient(conn, host)
 
 	if err != nil {
 		err = fmt.Errorf("TOUCH: %v", err)
-		metric["TOUCH"] = time.Now().Sub(startTime)
+		metric["TOUCH"] = time.Now().Sub(newclientTime)
 		return
 	}
 
-	metric["TOUCH"] = time.Now().Sub(startTime)
+	metric["TOUCH"] = time.Now().Sub(newclientTime)
 	defer c.Close()
 
+	helloTime := time.Now()
 	err = c.Hello(helo)
 
 	if err != nil {
 		err = fmt.Errorf("HELO: %v", err)
-		metric["HELO"] = time.Now().Sub(startTime)
+		metric["HELO"] = time.Now().Sub(helloTime)
 
 		return
 	}
 
-	metric["HELO"] = time.Now().Sub(startTime)
+	metric["HELO"] = time.Now().Sub(helloTime)
 
+	mailTime := time.Now()
 	err = c.Mail(from)
 
 	if err != nil {
 		err = fmt.Errorf("MAIL: %v", err)
-		metric["MAIL"] = time.Now().Sub(startTime)
+		metric["MAIL"] = time.Now().Sub(mailTime)
 
 		return
 	}
 
-	metric["MAIL"] = time.Now().Sub(startTime)
+	metric["MAIL"] = time.Now().Sub(mailTime)
 
+	rcptTime := time.Now()
 	err = c.Rcpt(to)
 
 	if err != nil {
 		err = fmt.Errorf("RCPT: %v", err)
-		metric["RCPT"] = time.Now().Sub(startTime)
+		metric["RCPT"] = time.Now().Sub(rcptTime)
 
 		return
 	}
 
-	metric["RCPT"] = time.Now().Sub(startTime)
+	metric["RCPT"] = time.Now().Sub(rcptTime)
+
+	dataTime := time.Now()
 
 	msg = ""
 	msg += fmt.Sprintf("from: <%s>\r\n", from)
@@ -238,7 +277,7 @@ func sendMail(outbound, smtpServer, from, to, subject, body, helo string) (metri
 
 	if err != nil {
 		err = fmt.Errorf("DATA: %v", err)
-		metric["DATA"] = time.Now().Sub(startTime)
+		metric["DATA"] = time.Now().Sub(dataTime)
 
 		return
 	}
@@ -249,18 +288,19 @@ func sendMail(outbound, smtpServer, from, to, subject, body, helo string) (metri
 
 	if err != nil {
 		err = fmt.Errorf("DATA: %v", err)
-		metric["DATA"] = time.Now().Sub(startTime)
+		metric["DATA"] = time.Now().Sub(dataTime)
 
 		return
 	}
 
-	metric["DATA"] = time.Now().Sub(startTime)
+	metric["DATA"] = time.Now().Sub(dataTime)
 
+	quitTime := time.Now()
 	err = c.Quit()
 
 	if err != nil {
 		err = fmt.Errorf("QUIT: %v", err)
-		metric["QUIT"] = time.Now().Sub(startTime)
+		metric["QUIT"] = time.Now().Sub(quitTime)
 
 		return
 	}
@@ -287,10 +327,6 @@ func getMetric(name string, metrics []map[string]time.Duration) (max, min, med t
 	sort.Slice(list, func(i, j int) bool {
 		return list[i] > list[j]
 	})
-
-	if len(list) == 0 {
-		return
-	}
 
 	min = list[0]
 	max = list[len(list)-1]
@@ -328,6 +364,8 @@ func metricKeys(metrics []map[string]time.Duration) (keys []string) {
 			}
 		}
 	}
+
+	sort.Strings(keys)
 
 	return
 }
@@ -405,4 +443,51 @@ func sequental(index int, list []string) string {
 	}
 
 	return ob
+}
+
+func printSlice(list []string, format string) {
+
+	m := map[string]int{}
+
+	for i := 0; i < len(list); i++ {
+		item := list[i]
+
+		if item == "" {
+			continue
+		}
+
+		if _, ok := m[item]; !ok {
+			m[item] = 1
+		} else {
+			m[item] = m[item] + 1
+		}
+	}
+
+	for k, v := range m {
+		fmt.Printf(format, k, v)
+	}
+}
+
+func createBodyFixedSize(n int) string {
+
+	n = n * 1024
+
+	const letterBytes = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
+
+	var src = rand.NewSource(time.Now().UnixNano())
+	b := make([]byte, n)
+
+	for i, cache, remain := n-1, src.Int63(), letterIdxMax; i >= 0; {
+		if remain == 0 {
+			cache, remain = src.Int63(), letterIdxMax
+		}
+		if idx := int(cache & letterIdxMask); idx < len(letterBytes) {
+			b[i] = letterBytes[idx]
+			i--
+		}
+		cache >>= letterIdxBits
+		remain--
+	}
+
+	return string(b)
 }
