@@ -139,7 +139,7 @@ func printResults(balanced bool, startTime, endtime time.Time) {
 		m := mkeys[i]
 		min, max, me := getMetric(m, metric.Durations)
 		cnt := countMetric(m, metric.Durations)
-		fmt.Printf("%s (%d)\t: min. %v, max. %v, med. %v\n", m, cnt, min, max, me)
+		fmt.Printf("%s (%d)\t: min. %-15v, max. %-15v, med. %-15v\n", m, cnt, min, max, me)
 	}
 	fmt.Println("")
 }
